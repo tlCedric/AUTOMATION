@@ -163,7 +163,7 @@ def parse_nmap_xml(xml_file):
     return scan_results
 
 def generate_report(results, output_file="nmap_security_report.md"):
-    """Generates a structured markdown report from the parsed results."""
+    """Generates a structured markdown report from the parsed results for the first target only."""
     with open(output_file, "w") as f:
         f.write("# Automated Nmap Tool Recommendation Report\n")
         f.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
@@ -173,42 +173,49 @@ def generate_report(results, output_file="nmap_security_report.md"):
             f.write("### No active hosts or open ports found in the scan file.\n")
             return
 
-        for ip, info in results.items():
-            f.write(f"## 🖥️ Target Host: {ip} ({info['hostname']})\n")
+        # Process only the first target
+        ip = list(results.keys())[0]
+        info = results[ip]
+        
+        f.write(f"## 🖥️ Target Host: {ip} ({info['hostname']})\n\n")
+        
+        if not info["ports"]:
+            f.write("*No open ports found on this host.*\n\n")
+            return
             
-            if not info["ports"]:
-                f.write("*No open ports found on this host.*\n\n")
-                continue
-                
-            f.write("| Port / Protocol | Service Name | Service Type | Detected Version | Recommended Tools |\n")
-            f.write("| :--- | :--- | :--- | :--- | :--- |\n")
-            
-            for p in info["ports"]:
-                tools_str = ", ".join([f"`{t}`" for t in p['tools']])
-                f.write(f"| **{p['port']}/{p['protocol']}** | {p['service']} | *{p['port_type']}* | {p['version']} | {tools_str} |\n")
-            
-            f.write("\n### 🚀 Targeted Action Plan\n")
-            f.write("Based on the discovered services, prioritize the following commands:\n")
-            
-            for p in info["ports"]:
-                f.write(f"- **Port {p['port']} ({p['service']}):**\n")
-                for tool in p['tools']:
-                    f.write(f"  - Tool Suggestion: Run analysis using `{tool}`\n")
-            f.write("\n---\n\n")
+        f.write("| Port / Protocol | Service Name | Service Type | Detected Version | Recommended Tools |\n")
+        f.write("| :--- | :--- | :--- | :--- | :--- |\n")
+        
+        for p in info["ports"]:
+            tools_str = ", ".join([f"`{t}`" for t in p['tools']])
+            f.write(f"| **{p['port']}/{p['protocol']}** | {p['service']} | *{p['port_type']}* | {p['version']} | {tools_str} |\n")
+        
+        f.write("\n### 🚀 Targeted Action Plan\n")
+        f.write("Based on the discovered services, prioritize the following commands:\n\n")
+        
+        for p in info["ports"]:
+            f.write(f"- **Port {p['port']} ({p['service']}):**\n")
+            for tool in p['tools']:
+                f.write(f"  - Tool Suggestion: Run analysis using `{tool}`\n")
+        f.write("\n---\n")
             
     print(f"[+] Detailed report successfully saved to: {os.path.abspath(output_file)}")
 
 def display_summary(results):
-    """Prints a quick scannable summary to the terminal terminal."""
+    """Prints a quick scannable summary to the terminal for the first target only."""
     print("\n" + "="*70)
     print(" SCAN SUMMARY & SUGGESTED ATTACK VECTORS")
     print("="*70)
-    for ip, info in results.items():
-        print(f"\n[IP]: {ip} ({info['hostname']})")
-        print("-" * 50)
-        for p in info["ports"]:
-            print(f"  -> Open Port: {p['port']}/{p['protocol']} | Type: {p['port_type']}")
-            print(f"     Suggested Tools: {', '.join(p['tools'])}\n")
+    
+    # Process only the first target
+    ip = list(results.keys())[0]
+    info = results[ip]
+    
+    print(f"\n[IP]: {ip} ({info['hostname']})")
+    print("-" * 50)
+    for p in info["ports"]:
+        print(f"  -> Open Port: {p['port']}/{p['protocol']} | Type: {p['port_type']}")
+        print(f"     Suggested Tools: {', '.join(p['tools'])}\n")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
