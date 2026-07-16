@@ -1,6 +1,6 @@
 # AUTOMATION - Penetration Testing Security Tools
 
-Complete automation suite for penetration testers to analyze Nmap scans and generate comprehensive security tool reference documentation.
+Complete automation suite for penetration testers to analyze Nmap scans and generate comprehensive security tool recommendations.
 
 ## 📋 Table of Contents
 
@@ -17,13 +17,12 @@ Complete automation suite for penetration testers to analyze Nmap scans and gene
 
 ## 🎯 Overview
 
-This repository contains three interconnected Python scripts designed to automate security testing workflows:
+This repository contains Python scripts designed to automate security testing workflows:
 
-1. **Nmap_analyzer.py** - Parses Nmap XML output and recommends tools per port
-2. **tool_syntax_generator.py** - Generates comprehensive tool reference documentation
-3. **concurrent_security_analyzer.py** - Orchestrates both scripts to run concurrently
+1. **Nmap_analyzer.py** - Parses Nmap XML output and recommends tools for the scanned target
+2. **concurrent_security_analyzer.py** - Orchestrates the Nmap analyzer for efficient automation
 
-These scripts work together to transform raw Nmap scan results into actionable security tool recommendations with complete command syntax references.
+These scripts work together to transform raw Nmap scan results into actionable security tool recommendations for a single target.
 
 ---
 
@@ -45,69 +44,47 @@ These scripts work together to transform raw Nmap scan results into actionable s
   - crackmapexec
   - ldapsearch
   - mysql
-  - And others (see tool reference)
+  - And others (see port recommendations)
 
 ---
 
 ## 📄 Script Descriptions
 
 ### 1. **Nmap_analyzer.py**
-Analyzes Nmap XML scan results and recommends security tools for each discovered port.
+Analyzes Nmap XML scan results and recommends security tools for the discovered target.
 
 **What it does:**
 - Parses Nmap XML output files (-oX format)
-- Extracts IP addresses, hostnames, ports, services, and versions
+- Extracts IP addresses, hostnames, ports, services, and versions from the scanned target
 - Maps ports to security testing tools
 - Generates a markdown report with recommendations
 - Displays a terminal summary of findings
+- Focuses on the first scanned target only
 
 **Key Features:**
 - Supports 25+ common ports (FTP, SSH, DNS, HTTP, HTTPS, SMB, LDAP, MySQL, MSSQL, RDP, etc.)
 - Provides tool-specific recommendations for each port
 - Extracts service version information
 - Generates a structured markdown report
+- Single target report (no multi-target output)
 
 **Output:**
-- `nmap_security_report.md` - Detailed markdown report with tool recommendations
+- `nmap_security_report.md` - Detailed markdown report with tool recommendations for the target
 
 ---
 
-### 2. **tool_syntax_generator.py**
-Creates comprehensive security tool reference documentation in multiple formats.
+### 2. **concurrent_security_analyzer.py**
+Master orchestrator that manages Nmap analyzer for efficient automation.
 
 **What it does:**
-- Generates structured tool reference guides
-- Contains complete command syntax for 30+ security tools
-- Organized by service/port (FTP, SSH, DNS, HTTP, HTTPS, SMB, LDAP, MySQL, MSSQL, RDP)
-- Includes common wordlists and best practices
-- Outputs in multiple formats for different use cases
-
-**Supported Output Formats:**
-1. **Markdown** (`tool_syntax_reference_report.md`) - Human-readable documentation
-2. **JSON** (`tool_syntax_reference_report.json`) - Structured data for scripting
-3. **CSV** (`tool_syntax_reference_report.csv`) - Spreadsheet-compatible format
-4. **HTML** (`tool_syntax_reference_report.html`) - Interactive browser view with styling
-
-**Key Content:**
-- Tool syntax for each service type
-- Multiple command examples per tool
-- Common wordlist locations (Kali Linux + SecLists)
-- Security testing best practices
-
----
-
-### 3. **concurrent_security_analyzer.py**
-Master orchestrator that runs both analyzers concurrently for efficient automation.
-
-**What it does:**
-- Manages concurrent execution of Nmap analyzer and tool generator
-- Uses threading for parallel processing
-- Combines results into a unified output directory
+- Manages execution of Nmap analyzer
+- Creates organized output directory structure
 - Tracks execution time and generates summary reports
 - Handles errors gracefully with detailed logging
+- Focuses on single target analysis
 
 **Key Features:**
-- Runs both analyzers simultaneously (faster than sequential)
+- Runs Nmap analyzer
 - Creates organized output directory structure
 - Generates execution summary with timing information
 - Saves analysis metadata to JSON
@@ -127,27 +104,21 @@ Master orchestrator that runs both analyzers concurrently for efficient automati
 1. Perform Nmap Scan
    └─> nmap -oX scan.xml target.com
 
-2. Run Concurrent Analyzer
+2. Run Security Analyzer
    └─> python concurrent_security_analyzer.py scan.xml
        │
-       ├─── Thread 1: Nmap Analyzer
-       │    └─> Parse XML
-       │    └─> Extract ports/services
-       │    └─> Generate tool recommendations
-       │    └─> Create nmap_security_report.md
-       │
-       └─── Thread 2: Tool Generator
-            └─> Generate reference documentation
-            └─> Create reports in 4 formats
-            └─> Output markdown, JSON, CSV, HTML
+       └─── Nmap Analyzer
+            └─> Parse XML
+            └─> Extract target ports/services
+            └─> Generate tool recommendations
+            └─> Create nmap_security_report.md
 
-3. Review Reports
-   └─> Markdown reports for quick reference
-   └─> HTML for interactive viewing
-   └─> JSON for automation integration
+3. Review Report
+   └─> Markdown report for quick reference
+   └─> Tool recommendations per port
 
 4. Execute Recommended Tools
-   └─> Copy commands from generated syntax reference
+   └─> Copy commands from generated recommendations
    └─> Follow best practices guidelines
    └─> Document findings
 ```
@@ -206,11 +177,7 @@ ls -la security_reports/
 ```
 
 **Output:**
-- `security_reports/nmap_security_report.md` - Tool recommendations per port
-- `security_reports/tool_syntax_reference_report.md` - Complete syntax guide
-- `security_reports/tool_syntax_reference_report.json` - JSON format
-- `security_reports/tool_syntax_reference_report.csv` - CSV format
-- `security_reports/tool_syntax_reference_report.html` - Interactive HTML
+- `security_reports/nmap_security_report.md` - Tool recommendations for the target
 - `security_reports/analysis_summary.json` - Execution metadata
 
 ---
@@ -232,26 +199,6 @@ python3 Nmap_analyzer.py scan.xml
 # Output: nmap_security_report.md (in current directory)
 ```
 
-#### Run Only Tool Generator
-```bash
-python3 tool_syntax_generator.py
-
-# Outputs all formats:
-# - tool_syntax_reference_report.md
-# - tool_syntax_reference_report.json
-# - tool_syntax_reference_report.csv
-# - tool_syntax_reference_report.html
-```
-
-#### Run Specific Tool Generator Formats
-```bash
-# Generate only Markdown and JSON
-python3 tool_syntax_generator.py markdown json
-
-# Generate only HTML
-python3 tool_syntax_generator.py html
-```
-
 ---
 
 ## 📊 Output Files
@@ -259,15 +206,7 @@ python3 tool_syntax_generator.py html
 ### Generated by Nmap Analyzer
 | File | Format | Purpose |
 |------|--------|---------|
-| `nmap_security_report.md` | Markdown | Port-to-tool mapping with detailed recommendations |
-
-### Generated by Tool Generator
-| File | Format | Purpose |
-|------|--------|---------|
-| `tool_syntax_reference_report.md` | Markdown | Human-readable command syntax guide |
-| `tool_syntax_reference_report.json` | JSON | Structured data for integration/scripting |
-| `tool_syntax_reference_report.csv` | CSV | Spreadsheet import for analysis |
-| `tool_syntax_reference_report.html` | HTML | Interactive styled reference guide |
+| `nmap_security_report.md` | Markdown | Port-to-tool mapping with detailed recommendations for the target |
 
 ### Generated by Concurrent Analyzer
 | File | Format | Purpose |
@@ -319,16 +258,12 @@ python3 concurrent_security_analyzer.py targets/company.xml ./company_audit
 # Step 3: Review findings (takes ~2-5 seconds)
 cat company_audit/nmap_security_report.md
 
-# Step 4: Reference tool syntax
-cat company_audit/tool_syntax_reference_report.md
-
-# Step 5: Execute recommended tests
+# Step 4: Execute recommended tests
 # Example from report: SMB on port 445 found
-# From tool reference, run:
+# From tool recommendations, run:
 crackmapexec smb company.example.com
 
-# Step 6: Keep HTML reference open for commands
-firefox company_audit/tool_syntax_reference_report.html &
+# Step 5: Document findings
 ```
 
 ---
@@ -431,7 +366,7 @@ This project is open source and available under the MIT License.
 
 ## ⚠️ Disclaimer
 
-These tools are designed for authorized security testing only. Unauthorized access to computer systems is illegal. Always obtain proper authorization before testing. The author is not responsible for misuse of these tools.
+These tools are designed for authorized security testing only. Unauthorized access to computer systems is illegal. Always obtain proper authorization before testing. The author is not responsible for misuse.
 
 ---
 
