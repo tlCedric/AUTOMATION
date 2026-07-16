@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Concurrent Security Analyzer
-Runs Nmap_analyzer.py and tool_syntax_generator.py concurrently for efficient security auditing.
-Combines Nmap scan analysis with comprehensive tool reference documentation.
+Runs Nmap_analyzer.py for efficient security auditing.
+Analyzes Nmap scan results for the first target.
 """
 
 import sys
@@ -16,11 +16,11 @@ import subprocess
 
 
 class ConcurrentSecurityAnalyzer:
-    """Manages concurrent execution of security analysis tools."""
+    """Manages execution of security analysis tools."""
     
     def __init__(self, nmap_xml_file: str, output_dir: str = "./security_reports"):
         """
-        Initialize the concurrent analyzer.
+        Initialize the analyzer.
         
         Args:
             nmap_xml_file: Path to Nmap XML output file
@@ -32,7 +32,6 @@ class ConcurrentSecurityAnalyzer:
         self.end_time = None
         self.results = {
             'nmap_analyzer': None,
-            'tool_generator': None,
             'errors': []
         }
         
@@ -41,7 +40,7 @@ class ConcurrentSecurityAnalyzer:
     
     def run_nmap_analyzer(self) -> bool:
         """
-        Run the Nmap analyzer in a thread.
+        Run the Nmap analyzer.
         
         Returns:
             True if successful, False otherwise
@@ -80,67 +79,22 @@ class ConcurrentSecurityAnalyzer:
             self.results['errors'].append(error_msg)
             return False
     
-    def run_tool_generator(self) -> bool:
+    def run(self) -> dict:
         """
-        Run the tool syntax generator in a thread.
-        
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            print("[*] Starting Tool Syntax Generator...")
-            
-            # Import and run tool generator
-            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-            from tool_syntax_generator import run_tool_generator
-            
-            # Generate reports in all formats
-            original_dir = os.getcwd()
-            os.chdir(self.output_dir)
-            
-            results = run_tool_generator(['markdown', 'json', 'csv', 'html'])
-            
-            os.chdir(original_dir)
-            
-            # Store results
-            for fmt, path in results.items():
-                if path:
-                    self.results['tool_generator'] = path
-            
-            print(f"[+] Tool Generator completed. Generated {len([p for p in results.values() if p])} reports")
-            return True
-            
-        except Exception as e:
-            error_msg = f"[-] Tool Generator error: {str(e)}"
-            print(error_msg)
-            self.results['errors'].append(error_msg)
-            return False
-    
-    def run_concurrent(self) -> dict:
-        """
-        Run both analyzers concurrently using threading.
+        Run the analyzer.
         
         Returns:
             Dictionary containing results and timing information
         """
         self.start_time = datetime.now()
         print(f"\n{'='*70}")
-        print(f"CONCURRENT SECURITY ANALYZER")
+        print(f"SECURITY ANALYZER")
         print(f"Started: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Output Directory: {os.path.abspath(self.output_dir)}")
         print(f"{'='*70}\n")
         
-        # Create threads for concurrent execution
-        thread_nmap = threading.Thread(target=self.run_nmap_analyzer, daemon=False)
-        thread_tools = threading.Thread(target=self.run_tool_generator, daemon=False)
-        
-        # Start both threads
-        thread_nmap.start()
-        thread_tools.start()
-        
-        # Wait for both threads to complete
-        thread_nmap.join()
-        thread_tools.join()
+        # Run nmap analyzer
+        self.run_nmap_analyzer()
         
         self.end_time = datetime.now()
         
@@ -161,7 +115,6 @@ class ConcurrentSecurityAnalyzer:
             'duration_seconds': duration,
             'output_directory': os.path.abspath(self.output_dir),
             'nmap_report': self.results['nmap_analyzer'],
-            'tool_reports': self.results['tool_generator'],
             'errors': self.results['errors'],
             'success': len(self.results['errors']) == 0
         }
@@ -188,11 +141,6 @@ class ConcurrentSecurityAnalyzer:
             print(f"  ✓ Nmap Analysis:    {summary['nmap_report']}")
         else:
             print(f"  ✗ Nmap Analysis:    Failed")
-        
-        if summary['tool_reports']:
-            print(f"  ✓ Tool Reference:   {summary['tool_reports']}")
-        else:
-            print(f"  ✗ Tool Reference:   Failed")
         
         if summary['errors']:
             print(f"\nErrors ({len(summary['errors'])}):")
@@ -237,7 +185,7 @@ def main():
     
     # Create and run analyzer
     analyzer = ConcurrentSecurityAnalyzer(nmap_xml_file, output_dir)
-    summary = analyzer.run_concurrent()
+    summary = analyzer.run()
     
     # Print and save summary
     analyzer.print_summary(summary)
