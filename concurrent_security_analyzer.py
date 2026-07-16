@@ -22,6 +22,22 @@ import subprocess
 import re
 
 
+# Mapping from common port numbers to suggested tools/commands (display-only)
+COMMON_PORT_TOOL_SUGGESTIONS: Dict[int, List[str]] = {
+    21: ["FTP - nmap -sV -p21 --script=ftp* {target}", "hydra -l user -P passlist ftp://{target}:{port}"],
+    22: ["SSH - nmap -sV -p22 --script=ssh* {target}", "hydra -l user -P passlist ssh://{target}:{port}"],
+    23: ["Telnet - nmap -sV -p23 --script=telnet* {target}"],
+    25: ["SMTP - nmap -sV -p25 --script=smtp* {target}", "swaks --to someone@example.com --server {target}:{port}"],
+    53: ["DNS - dig @{target} -p53 {target}", "nmap -sU -p53 --script=dns* {target}"],
+    80: ["HTTP - nikto -h http://{target}:{port}", "gobuster dir -u http://{target}:{port} -w /path/wordlist"],
+    443: ["HTTPS - nikto -h https://{target}:{port}", "gobuster dir -u https://{target}:{port} -w /path/wordlist"],
+    1433: ["MSSQL - nmap --script=ms-sql-info -p1433 {target}"],
+    3306: ["MySQL - nmap --script=mysql* -p3306 {target}", "mysql -h {target} -P {port} -u user -p"],
+    3389: ["RDP - nmap -sV --script=rdp* -p3389 {target}"],
+    5900: ["VNC - nmap -sV -p5900 --script=vnc* {target}"],
+}
+
+
 class ConcurrentSecurityAnalyzer:
     """Manages execution of security analysis tools."""
     
@@ -101,9 +117,13 @@ class ConcurrentSecurityAnalyzer:
 
         return ports
 
+    def _suggest_tools_for_port(self, port: int) -> List[str]:
+        """Return suggested tools/commands for a given port (display strings)."""
+        return COMMON_PORT_TOOL_SUGGESTIONS.get(port, [f"nmap -sV -p{port} {{target}}  # general service discovery on port {port}"])
+
     def _generate_simple_report(self, parsed_ports: List[Dict[str, str]], report_path: str, source_file: str) -> None:
         """
-        Generate a simple markdown report listing all discovered ports.
+        Generate a simple markdown report listing all discovered ports and suggested tools.
         """
         lines = []
         lines.append(f"# Simple Port Report for {os.path.basename(source_file)}")
@@ -116,13 +136,29 @@ class ConcurrentSecurityAnalyzer:
         if not parsed_ports:
             lines.append("No port-like patterns were detected in the input file.")
         else:
-            lines.append("| Port | Protocol | Example Snippet |")
-            lines.append("|------|----------|-----------------|")
+            lines.append("| Port | Protocol | Example Snippet | Suggested Tools / Syntax |")
+            lines.append("|------|----------|-----------------|--------------------------|")
             for p in parsed_ports:
                 port = p.get('port')
                 proto = p.get('proto', 'unknown')
                 snippet = (p.get('snippet') or '').replace('\n', ' ')[:120]
-                lines.append(f"| {port} | {proto} | {snippet} |")
+                suggestions = self._suggest_tools_for_port(int(port))
+                # join suggestions; show short syntax examples
+                sugg_text = "<br>".join(suggestions)
+                lines.append(f"| {port} | {proto} | {snippet} | {sugg_text} |")
+
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("## Notes on recognized port syntaxes")
+        lines.append("")
+        lines.append("The analyzer recognizes the following common port syntax examples:")
+        lines.append("")
+        lines.append("- `80/tcp`, `53/udp` — explicit port/protocol pairs.")
+        lines.append("- `port 22`, `port:22` — 'port' keyword followed by a number.")
+        lines.append("- `22` or `22 (open)` — standalone numbers when nearby context indicates a port.")
+        lines.append("")
+        lines.append("If you want the analyzer to always treat input as raw text (skip XML detection), run with a future --force-text flag (not yet implemented).")
 
         with open(report_path, 'w', encoding='utf-8') as fh:
             fh.write('\n'.join(lines))
@@ -131,9 +167,19 @@ class ConcurrentSecurityAnalyzer:
         print("[+] Simple port extraction summary:")
         if not parsed_ports:
             print("    No ports found in the provided file.")
-        else:
-            for p in parsed_ports:
-                print(f"    - Port {p['port']} ({p.get('proto', 'unknown')}) — example: {p.get('snippet')}")
+            return
+        # Present a compact view of ports, protocol, and suggested tools
+        for p in parsed_ports:
+            port = p['port']
+            proto = p.get('proto', 'unknown')
+            snippet = p.get('snippet')
+            print(f"    - Port {port} ({proto}) — example: {snippet}")
+            suggestions = self._suggest_tools_for_port(int(port))
+            # print up to 3 suggestions for readability
+            for s in suggestions[:3]:
+                print(f"        • {s}")
+        # Show a short note about recognized syntaxes
+        print("\nRecognized port syntaxes: '80/tcp', '53/udp', 'port 22', '22 (open)'.")
 
     def run_nmap_analyzer(self) -> bool:
         """
@@ -212,10 +258,10 @@ class ConcurrentSecurityAnalyzer:
                     self.results['errors'].append(error_msg)
                     return False
 
-                # Display simple summary
+                # Display simple summary (now includes tools suggestions and syntax note)
                 self._display_simple_summary(parsed_ports)
 
-                # Generate and save a simple markdown report
+                # Generate and save a simple markdown report (includes suggested tools and syntax notes)
                 report_path = os.path.join(self.output_dir, "ports_from_input_report.md")
                 self._generate_simple_report(parsed_ports, report_path, self.nmap_xml_file)
 
